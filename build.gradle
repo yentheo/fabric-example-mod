@@ -19,11 +19,15 @@ dependencies {
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modCompile "net.fabricmc:fabric-loader:${project.loader_version}"
 
+
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modCompile "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	compile "org.java-websocket:Java-WebSocket:1.4.0"
 
-	// PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
-	// You may need to force-disable transitiveness on them.
+	implementation("com.squareup.okhttp3:okhttp:4.4.0")
+  	implementation 'com.google.code.gson:gson:2.8.6'
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.9'
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.9'
 }
 
 processResources {
