@@ -1,4 +1,4 @@
-package net.fabricmc.example;
+package net.fabricmc.example.configuration;
 
 public class RefreshTokenEntry {
     public String refreshToken;

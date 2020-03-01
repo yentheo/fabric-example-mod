@@ -1,4 +1,4 @@
-package net.fabricmc.example;
+package net.fabricmc.example.restream;
 
 public class AuthorizeResponse {
     public String access_token;

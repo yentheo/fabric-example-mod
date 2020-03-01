@@ -1,11 +1,6 @@
-package net.fabricmc.example;
+package net.fabricmc.example.restream;
 
 import java.util.List;
-
-class Payload {
-    public String author;
-    public List<Content> contents;
-}
 
 public class ChatMessage {
     public String subscription;
