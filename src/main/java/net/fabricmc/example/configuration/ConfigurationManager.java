@@ -2,7 +2,6 @@ package net.fabricmc.example.configuration;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectInputStream.GetField;
 import java.util.ArrayList;
 
 import com.fasterxml.jackson.core.JsonParseException;

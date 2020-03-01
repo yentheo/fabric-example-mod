@@ -4,22 +4,15 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.example.restream.*;
 import net.fabricmc.example.configuration.*;
 import net.fabricmc.fabric.api.registry.CommandRegistry;
-import net.minecraft.server.command.CommandManager;
 import static net.minecraft.server.command.CommandManager.literal;
 import static net.minecraft.server.command.CommandManager.argument;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
@@ -47,8 +40,8 @@ public class ExampleMod implements ModInitializer {
 						configurationManager.saveCredentials(clientId, clientSecret);
 						return 1;
 					}))));
-			dispatcher.register(CommandManager.literal("restream")
-					.then(CommandManager.argument("code", greedyString()).executes(ctx -> {
+			dispatcher.register(literal("restream")
+					.then(argument("code", greedyString()).executes(ctx -> {
 						RestreamConfiguration configuration = configurationManager.getConfiguration();
 						String code = StringArgumentType.getString(ctx, "code");
 						String name = ctx.getSource().getName();
