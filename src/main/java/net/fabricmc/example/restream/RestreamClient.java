@@ -26,19 +26,21 @@ public class RestreamClient {
     }
 
     public AuthorizeResponse authorize(String code) {
+        System.out.println("Authorizing with code");
         HashMap<String, String> parameters = new HashMap<String, String>();
         parameters.put("grant_type", "authorization_code");
-        parameters.put("redirect_uri", "http://loclahost");
+        parameters.put("redirect_uri", "http://localhost");
         parameters.put("code", code);
         return authorize(parameters);
     }
 
     public AuthorizeResponse refreshAuthorizationFor(String name) {
+        System.out.println("Authorizing with refresh token");
         String refreshToken = _configurationManager.getRefreshToken(name);
         if (refreshToken != null) {
             HashMap<String, String> parameters = new HashMap<String, String>();
             parameters.put("grant_type", "refresh_token");
-            parameters.put("refresh_token", "http://loclahost");
+            parameters.put("refresh_token", refreshToken);
             return authorize(parameters);
         }
         return null;
@@ -57,7 +59,7 @@ public class RestreamClient {
                 System.out.println(message);
                 Gson gson = new Gson();
                 ChatMessage chatMessage = gson.fromJson(message, ChatMessage.class);
-                if (chatMessage.subscription.equals("user/chat")) {
+                if (chatMessage.subscription != null && chatMessage.subscription.equals("user/chat")) {
                     String content = "";
                     for (Content c : chatMessage.payload.contents) {
                         content = content + " " + c.content;
@@ -75,12 +77,15 @@ public class RestreamClient {
     private AuthorizeResponse authorize(HashMap<String, String> parameters) {
         RestreamConfiguration configuration = _configurationManager.getConfiguration();
         HashMap<String, String> allParameters = new HashMap<String, String>(parameters);
-        allParameters.put("clientId", configuration.clientId);
-        allParameters.put("clientSecret", configuration.clientSecret);
+        allParameters.put("client_id", configuration.clientId);
+        allParameters.put("client_secret", configuration.clientSecret);
+        System.out.println("Authorizing with client id {" + configuration.clientId + "} and secret {"
+                + configuration.clientSecret + "}");
         List<String> keyValues = allParameters.keySet().stream()
                 .map(key -> String.format("%s=%s", key, allParameters.get(key))).collect(Collectors.toList());
         String bodyContent = String.join("&", keyValues);
         MediaType formUrl = MediaType.get("application/x-www-form-urlencoded");
+        System.out.println("Authorizing with body {" + bodyContent + "}");
         RequestBody body = RequestBody.create(bodyContent, formUrl);
         Request request = new Request.Builder().url("https://api.restream.io/oauth/token").post(body).build();
         OkHttpClient httpClient = new OkHttpClient();
