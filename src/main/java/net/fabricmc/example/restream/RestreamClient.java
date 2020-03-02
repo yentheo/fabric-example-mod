@@ -1,0 +1,98 @@
+package net.fabricmc.example.restream;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.List;
+
+import com.google.gson.Gson;
+
+import net.fabricmc.example.OnChatMessageHandler;
+import net.fabricmc.example.SimpleClient;
+import net.fabricmc.example.configuration.ConfigurationManager;
+import net.fabricmc.example.configuration.RestreamConfiguration;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import java.util.stream.Collectors;
+
+public class RestreamClient {
+    private ConfigurationManager _configurationManager;
+
+    public RestreamClient(ConfigurationManager configurationManager) {
+        _configurationManager = configurationManager;
+    }
+
+    public AuthorizeResponse authorize(String code) {
+        HashMap<String, String> parameters = new HashMap<String, String>();
+        parameters.put("grant_type", "authorization_code");
+        parameters.put("redirect_uri", "http://loclahost");
+        parameters.put("code", code);
+        return authorize(parameters);
+    }
+
+    public AuthorizeResponse refreshAuthorizationFor(String name) {
+        String refreshToken = _configurationManager.getRefreshToken(name);
+        if (refreshToken != null) {
+            HashMap<String, String> parameters = new HashMap<String, String>();
+            parameters.put("grant_type", "refresh_token");
+            parameters.put("refresh_token", "http://loclahost");
+            return authorize(parameters);
+        }
+        return null;
+    }
+
+    public void startListen(String accessToken, OnChatMessageHandler handler) {
+        SimpleClient client;
+        try {
+            client = new SimpleClient(new URI("wss://api.restream.io/v2/ws"));
+            client.registerOnOpen(() -> {
+                client.send("{ \"action\": \"subscribe\", \"token\":\"" + accessToken
+                        + "\", \"subscriptions\":[\"user/stream\", \"user/chat\"] }");
+            });
+
+            client.registerOnMessage(message -> {
+                System.out.println(message);
+                Gson gson = new Gson();
+                ChatMessage chatMessage = gson.fromJson(message, ChatMessage.class);
+                if (chatMessage.subscription.equals("user/chat")) {
+                    String content = "";
+                    for (Content c : chatMessage.payload.contents) {
+                        content = content + " " + c.content;
+                    }
+                    handler.op(chatMessage.payload.author, content);
+                }
+            });
+
+            client.connect();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private AuthorizeResponse authorize(HashMap<String, String> parameters) {
+        RestreamConfiguration configuration = _configurationManager.getConfiguration();
+        HashMap<String, String> allParameters = new HashMap<String, String>(parameters);
+        allParameters.put("clientId", configuration.clientId);
+        allParameters.put("clientSecret", configuration.clientSecret);
+        List<String> keyValues = allParameters.keySet().stream()
+                .map(key -> String.format("%s=%s", key, allParameters.get(key))).collect(Collectors.toList());
+        String bodyContent = String.join("&", keyValues);
+        MediaType formUrl = MediaType.get("application/x-www-form-urlencoded");
+        RequestBody body = RequestBody.create(bodyContent, formUrl);
+        Request request = new Request.Builder().url("https://api.restream.io/oauth/token").post(body).build();
+        OkHttpClient httpClient = new OkHttpClient();
+        try (Response response = httpClient.newCall(request).execute()) {
+            String responseBody = response.body().string();
+            System.out.println(responseBody);
+            Gson gson = new Gson();
+            AuthorizeResponse authresponse = (AuthorizeResponse) gson.fromJson(responseBody, AuthorizeResponse.class);
+            return authresponse;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}

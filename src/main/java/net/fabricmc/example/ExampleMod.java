@@ -10,21 +10,13 @@ import static net.minecraft.server.command.CommandManager.argument;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-
-import com.google.gson.Gson;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
 import net.minecraft.text.LiteralText;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 public class ExampleMod implements ModInitializer {
 	ConfigurationManager configurationManager = new ConfigurationManager();
+	RestreamClient restreamClient = new RestreamClient(configurationManager);
 
 	@Override
 	public void onInitialize() {
@@ -40,97 +32,42 @@ public class ExampleMod implements ModInitializer {
 						configurationManager.saveCredentials(clientId, clientSecret);
 						return 1;
 					}))));
-			dispatcher.register(literal("restream")
-					.then(argument("code", greedyString()).executes(ctx -> {
-						RestreamConfiguration configuration = configurationManager.getConfiguration();
-						String code = StringArgumentType.getString(ctx, "code");
-						String name = ctx.getSource().getName();
-						String bodyContent = "client_id=" + configuration.clientId + "&client_secret="
-								+ configuration.clientSecret
-								+ "&grant_type=authorization_code&redirect_uri=http://localhost&code=" + code;
-						System.out.println("Getting tokens for " + ctx.getSource().getName());
-						try {
-							AuthorizeResponse authorizeResponse = getAuthorizeResponse(bodyContent, name);
-							configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
-							startListen(authorizeResponse.access_token, (author, message) -> {
-
-								ctx.getSource().getMinecraftServer().getPlayerManager()
-										.broadcastChatMessage(new LiteralText(author + ": " + message), true);
-							});
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-						return 1;
-					})).executes(ctx -> {
-						try {
-							String name = ctx.getSource().getName();
-							RestreamConfiguration configuration = configurationManager.getConfiguration();
-							String refreshToken = configurationManager.getRefreshToken(name);
-							if (refreshToken != null) {
-								String bodyContent = "client_id=" + configuration.clientId + "&client_secret="
-										+ configuration.clientSecret + "&grant_type=refresh_token&refresh_token="
-										+ refreshToken;
-								AuthorizeResponse authorizeResponse = getAuthorizeResponse(bodyContent, name);
-								startListen(authorizeResponse.access_token, (author, message) -> {
-
-									ctx.getSource().getMinecraftServer().getPlayerManager()
-											.broadcastChatMessage(new LiteralText(author + ": " + message), true);
-								});
-							} else {
-								System.out.println("no refresh token for current user");
-							}
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-						return 1;
-					}));
-		});
-
-	}
-
-	private AuthorizeResponse getAuthorizeResponse(String bodyContent, String name) {
-		MediaType formUrl = MediaType.get("application/x-www-form-urlencoded");
-		RequestBody body = RequestBody.create(bodyContent, formUrl);
-		Request request = new Request.Builder().url("https://api.restream.io/oauth/token").post(body).build();
-		OkHttpClient httpClient = new OkHttpClient();
-		System.out.println("Getting tokens for " + name);
-		try (Response response = httpClient.newCall(request).execute()) {
-			String responseBody = response.body().string();
-			System.out.println(responseBody);
-			Gson gson = new Gson();
-			AuthorizeResponse authresponse = (AuthorizeResponse) gson.fromJson(responseBody, AuthorizeResponse.class);
-			return authresponse;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	private void startListen(String accessToken, OnChatMessageHandler handler) {
-		SimpleClient client;
-		try {
-			client = new SimpleClient(new URI("wss://api.restream.io/v2/ws"));
-			client.registerOnOpen(() -> {
-				client.send("{ \"action\": \"subscribe\", \"token\":\"" + accessToken
-						+ "\", \"subscriptions\":[\"user/stream\", \"user/chat\"] }");
-			});
-
-			client.registerOnMessage(message -> {
-				System.out.println(message);
-				Gson gson = new Gson();
-				ChatMessage chatMessage = gson.fromJson(message, ChatMessage.class);
-				if (chatMessage.subscription.equals("user/chat")) {
-					String content = "";
-					for (Content c : chatMessage.payload.contents) {
-						content = content + " " + c.content;
+			dispatcher.register(literal("restream").then(argument("code", greedyString()).executes(ctx -> {
+				String code = StringArgumentType.getString(ctx, "code");
+				String name = ctx.getSource().getName();
+				System.out.println("Getting tokens for " + ctx.getSource().getName());
+				AuthorizeResponse authorizeResponse = restreamClient.authorize(code);
+				if (authorizeResponse != null) {
+					if (authorizeResponse.access_token != null) {
+						configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
+						restreamClient.startListen(authorizeResponse.access_token, (author, message) -> {
+							ctx.getSource().getMinecraftServer().getPlayerManager()
+									.broadcastChatMessage(new LiteralText(author + ": " + message), true);
+						});
+					} else {
+						ctx.getSource().sendFeedback(
+								new LiteralText("Couldn't authorize, make sure the code is correct."), false);
 					}
-					handler.op(chatMessage.payload.author, content);
+				} else {
+					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, make sure the code is correct."),
+							false);
 				}
-			});
-
-			client.connect();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		}
+				return 1;
+			})).executes(ctx -> {
+				String name = ctx.getSource().getName();
+				AuthorizeResponse authorizeResponse = restreamClient.refreshAuthorizationFor(name);
+				if (authorizeResponse != null) {
+					restreamClient.startListen(authorizeResponse.access_token, (author, message) -> {
+						ctx.getSource().getMinecraftServer().getPlayerManager()
+								.broadcastChatMessage(new LiteralText(author + ": " + message), true);
+					});
+				} else {
+					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code"),
+							false);
+					System.out.println("no refresh token for current user");
+				}
+				return 1;
+			}));
+		});
 	}
 }
