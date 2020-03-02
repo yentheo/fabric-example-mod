@@ -58,13 +58,17 @@ public class RestreamClient {
             client.registerOnMessage(message -> {
                 System.out.println(message);
                 Gson gson = new Gson();
-                ChatMessage chatMessage = gson.fromJson(message, ChatMessage.class);
-                if (chatMessage.subscription != null && chatMessage.subscription.equals("user/chat")) {
-                    String content = "";
-                    for (Content c : chatMessage.payload.contents) {
-                        content = content + " " + c.content;
+                if (message != null) {
+                    ChatMessage chatMessage = gson.fromJson(message, ChatMessage.class);
+                    if (chatMessage.subscription != null && chatMessage.subscription.equals("user/chat")) {
+                        String content = "";
+                        if (chatMessage.payload != null) {
+                            for (Content c : chatMessage.payload.contents) {
+                                content = content + " " + c.content;
+                            }
+                            handler.op(chatMessage.payload.author, content);
+                        }
                     }
-                    handler.op(chatMessage.payload.author, content);
                 }
             });
 
