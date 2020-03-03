@@ -25,3 +25,5 @@ bin/
 run/
 
 config.yaml
+
+.DS_store

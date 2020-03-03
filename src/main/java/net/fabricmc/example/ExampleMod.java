@@ -13,6 +13,7 @@ import static com.mojang.brigadier.arguments.StringArgumentType.string;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
 import net.minecraft.text.LiteralText;
+import net.minecraft.util.Formatting;
 
 public class ExampleMod implements ModInitializer {
 	ConfigurationManager configurationManager = new ConfigurationManager();
@@ -39,31 +40,49 @@ public class ExampleMod implements ModInitializer {
 				AuthorizeResponse authorizeResponse = restreamClient.authorize(code);
 				if (authorizeResponse != null) {
 					if (authorizeResponse.access_token != null) {
-						configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
-						restreamClient.startListen(authorizeResponse.access_token, (author, message) -> {
+						if (authorizeResponse.refresh_token != null) {
+							configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
+							ctx.getSource().sendFeedback(new LiteralText("Saved refresh token.").formatted(Formatting.GRAY), false);
+						}
+						restreamClient.startListen(authorizeResponse.access_token, () -> {
+							ctx.getSource().sendFeedback(new LiteralText("Connected to Restream").formatted(Formatting.DARK_GREEN), false);
+						}, (author, message) -> {
 							ctx.getSource().getMinecraftServer().getPlayerManager()
 									.broadcastChatMessage(new LiteralText(author + ": " + message), true);
 						});
 					} else {
-						ctx.getSource().sendFeedback(
-								new LiteralText("Couldn't authorize, make sure the code is correct."), false);
+						ctx.getSource()
+								.sendFeedback(new LiteralText("Couldn't authorize, make sure the code is correct.")
+										.formatted(Formatting.RED), false);
 					}
 				} else {
-					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, make sure the code is correct."),
-							false);
+					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, make sure the code is correct.")
+							.formatted(Formatting.RED), false);
 				}
 				return 1;
 			})).executes(ctx -> {
 				String name = ctx.getSource().getName();
 				AuthorizeResponse authorizeResponse = restreamClient.refreshAuthorizationFor(name);
 				if (authorizeResponse != null) {
-					restreamClient.startListen(authorizeResponse.access_token, (author, message) -> {
-						ctx.getSource().getMinecraftServer().getPlayerManager()
-								.broadcastChatMessage(new LiteralText(author + ": " + message), true);
-					});
+					if (authorizeResponse.refresh_token != null) {
+						configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
+						ctx.getSource().sendFeedback(new LiteralText("Saved refresh token.").formatted(Formatting.GRAY), false);
+					}
+					if (authorizeResponse.access_token != null) {
+						restreamClient.startListen(authorizeResponse.access_token, () -> {
+							ctx.getSource().sendFeedback(new LiteralText("Connected to Restream").formatted(Formatting.DARK_GREEN), false);
+						}, (author, message) -> {
+							ctx.getSource().getMinecraftServer().getPlayerManager()
+									.broadcastChatMessage(new LiteralText(author + ": " + message), true);
+						});
+
+					} else {
+						ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code")
+								.formatted(Formatting.RED), false);
+					}
 				} else {
-					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code"),
-							false);
+					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code")
+							.formatted(Formatting.RED), false);
 					System.out.println("no refresh token for current user");
 				}
 				return 1;

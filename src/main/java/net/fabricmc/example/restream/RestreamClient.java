@@ -8,6 +8,7 @@ import java.util.List;
 import com.google.gson.Gson;
 
 import net.fabricmc.example.OnChatMessageHandler;
+import net.fabricmc.example.OnConnectHandler;
 import net.fabricmc.example.SimpleClient;
 import net.fabricmc.example.configuration.ConfigurationManager;
 import net.fabricmc.example.configuration.RestreamConfiguration;
@@ -46,11 +47,12 @@ public class RestreamClient {
         return null;
     }
 
-    public void startListen(String accessToken, OnChatMessageHandler handler) {
+    public void startListen(String accessToken, OnConnectHandler onConnectHandler, OnChatMessageHandler handler) {
         SimpleClient client;
         try {
             client = new SimpleClient(new URI("wss://api.restream.io/v2/ws"));
             client.registerOnOpen(() -> {
+                onConnectHandler.op();
                 client.send("{ \"action\": \"subscribe\", \"token\":\"" + accessToken
                         + "\", \"subscriptions\":[\"user/stream\", \"user/chat\"] }");
             });
@@ -64,7 +66,15 @@ public class RestreamClient {
                         String content = "";
                         if (chatMessage.payload != null) {
                             for (Content c : chatMessage.payload.contents) {
-                                content = content + " " + c.content;
+                                if ("img".equals(c.type) && "link".equals(c.subtype)) {
+                                    content = content + " {img}";
+                                } else if ("text".equals(c.type)) {
+                                    content = content + " " + c.content;
+                                } else if ("link".equals(c.type)) {
+                                    content = content + " {" + c.content + "}";
+                                } else {
+                                    content = content + " {unknown}";
+                                }
                             }
                             handler.op(chatMessage.payload.author, content);
                         }

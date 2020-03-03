@@ -1,0 +1,29 @@
+{
+  "subscription": "user/stream",
+  "payload": {
+    "channels": [
+      {
+        "channelIdentifier": "147343351",
+        "eventIdentifier": "",
+        "followers": 38,
+        "gameTitle": "Minecraft",
+        "id": 3886917,
+        "streamingPlatformId": 1,
+        "title": "Minecraft 1.16 | Bèta Gaming | kzenmatthias & CptSpectra",
+        "viewers": 2
+      },
+      {
+        "channelIdentifier": "UCv46FRyXPdF6MwXRzTgRg9Q",
+        "eventIdentifier": "",
+        "followers": 253,
+        "gameTitle": "unknown",
+        "id": 3886932,
+        "streamingPlatformId": 25,
+        "title": "Minecraft 1.16 | Bèta Gaming | kzenmatthias & CptSpectra",
+        "viewers": 0
+      }
+    ],
+    "live": true,
+    "userId": 1916321
+  }
+}

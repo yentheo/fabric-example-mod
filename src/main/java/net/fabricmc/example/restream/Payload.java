@@ -5,4 +5,5 @@ import java.util.List;
 public class Payload {
     public String author;
     public List<Content> contents;
+    public int channelId;
 }
