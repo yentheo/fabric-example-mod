@@ -15,9 +15,14 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.Formatting;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ExampleMod implements ModInitializer {
 	ConfigurationManager configurationManager = new ConfigurationManager();
 	RestreamClient restreamClient = new RestreamClient(configurationManager);
+
+	List<String> connectedNames = new ArrayList<String>();
 
 	@Override
 	public void onInitialize() {
@@ -36,19 +41,29 @@ public class ExampleMod implements ModInitializer {
 			dispatcher.register(literal("restream").then(argument("code", greedyString()).executes(ctx -> {
 				String code = StringArgumentType.getString(ctx, "code");
 				String name = ctx.getSource().getName();
+				if (connectedNames.contains(name)) {
+					ctx.getSource().sendFeedback(new LiteralText("Already connected.").formatted(Formatting.GRAY),
+							false);
+					return 1;
+				}
 				System.out.println("Getting tokens for " + ctx.getSource().getName());
 				AuthorizeResponse authorizeResponse = restreamClient.authorize(code);
 				if (authorizeResponse != null) {
 					if (authorizeResponse.access_token != null) {
 						if (authorizeResponse.refresh_token != null) {
 							configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
-							ctx.getSource().sendFeedback(new LiteralText("Saved refresh token.").formatted(Formatting.GRAY), false);
+							ctx.getSource().sendFeedback(
+									new LiteralText("Saved refresh token.").formatted(Formatting.GRAY), false);
 						}
 						restreamClient.startListen(authorizeResponse.access_token, () -> {
-							ctx.getSource().sendFeedback(new LiteralText("Connected to Restream").formatted(Formatting.DARK_GREEN), false);
+							ctx.getSource().sendFeedback(
+									new LiteralText("Connected to Restream").formatted(Formatting.DARK_GREEN), false);
+							connectedNames.add(name);
 						}, (author, message) -> {
 							ctx.getSource().getMinecraftServer().getPlayerManager()
 									.broadcastChatMessage(new LiteralText(author + ": " + message), true);
+						}, () -> {
+							connectedNames.remove(name);
 						});
 					} else {
 						ctx.getSource()
@@ -62,23 +77,34 @@ public class ExampleMod implements ModInitializer {
 				return 1;
 			})).executes(ctx -> {
 				String name = ctx.getSource().getName();
+				if (connectedNames.contains(name)) {
+					ctx.getSource().sendFeedback(new LiteralText("Already connected.").formatted(Formatting.GRAY),
+							false);
+					return 1;
+				}
 				AuthorizeResponse authorizeResponse = restreamClient.refreshAuthorizationFor(name);
 				if (authorizeResponse != null) {
 					if (authorizeResponse.refresh_token != null) {
 						configurationManager.saveRefreshToken(name, authorizeResponse.refresh_token);
-						ctx.getSource().sendFeedback(new LiteralText("Saved refresh token.").formatted(Formatting.GRAY), false);
+						ctx.getSource().sendFeedback(new LiteralText("Saved refresh token.").formatted(Formatting.GRAY),
+								false);
 					}
 					if (authorizeResponse.access_token != null) {
 						restreamClient.startListen(authorizeResponse.access_token, () -> {
-							ctx.getSource().sendFeedback(new LiteralText("Connected to Restream").formatted(Formatting.DARK_GREEN), false);
+							ctx.getSource().sendFeedback(
+									new LiteralText("Connected to Restream").formatted(Formatting.DARK_GREEN), false);
+							connectedNames.add(name);
 						}, (author, message) -> {
 							ctx.getSource().getMinecraftServer().getPlayerManager()
 									.broadcastChatMessage(new LiteralText(author + ": " + message), true);
+						}, () -> {
+							connectedNames.remove(name);
 						});
 
 					} else {
-						ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code")
-								.formatted(Formatting.RED), false);
+						ctx.getSource()
+								.sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code")
+										.formatted(Formatting.RED), false);
 					}
 				} else {
 					ctx.getSource().sendFeedback(new LiteralText("Couldn't authorize, try re-authorizing with a code")

@@ -10,6 +10,7 @@ public class SimpleClient extends WebSocketClient {
 
     private OnConnectHandler _onConnectHandler;
     private OnMessageHandler _onMessageHandler;
+    private OnDisconnectHandler _onDisconnectHandler;
 
     public SimpleClient(URI serverURI) {
         super(serverURI);
@@ -23,6 +24,10 @@ public class SimpleClient extends WebSocketClient {
         _onMessageHandler = handler;
     }
 
+    public void registerOnDisconnect(OnDisconnectHandler handler) {
+        _onDisconnectHandler = handler;
+    }
+
     @Override
     public void onOpen(ServerHandshake handshakedata) {
         _onConnectHandler.op();
@@ -31,6 +36,7 @@ public class SimpleClient extends WebSocketClient {
     @Override
     public void onClose(int code, String reason, boolean remote) {
         System.out.println("closed with exit code " + code + " additional info: " + reason);
+        _onDisconnectHandler.op();;
     }
 
     @Override

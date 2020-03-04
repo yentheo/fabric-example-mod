@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 
 import net.fabricmc.example.OnChatMessageHandler;
 import net.fabricmc.example.OnConnectHandler;
+import net.fabricmc.example.OnDisconnectHandler;
 import net.fabricmc.example.SimpleClient;
 import net.fabricmc.example.configuration.ConfigurationManager;
 import net.fabricmc.example.configuration.RestreamConfiguration;
@@ -47,7 +48,7 @@ public class RestreamClient {
         return null;
     }
 
-    public void startListen(String accessToken, OnConnectHandler onConnectHandler, OnChatMessageHandler handler) {
+    public void startListen(String accessToken, OnConnectHandler onConnectHandler, OnChatMessageHandler handler, OnDisconnectHandler onDisconnectHandler) {
         SimpleClient client;
         try {
             client = new SimpleClient(new URI("wss://api.restream.io/v2/ws"));
@@ -80,6 +81,10 @@ public class RestreamClient {
                         }
                     }
                 }
+            });
+
+            client.registerOnDisconnect(() -> {
+                onDisconnectHandler.op();
             });
 
             client.connect();
